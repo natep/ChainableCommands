@@ -15,27 +15,25 @@ public enum Result<Value> {
 public struct EmptyCommandData {}
 
 public typealias ErrorHandler = (Error) -> ()
-public typealias Continuation<Output> = (Output) -> ()
+public typealias Continuation<Output> = (Output, @escaping ErrorHandler) -> ()
 
 public protocol ChainableCommand: class {
     associatedtype Input
     associatedtype Output
 
-    var errorHandler: ErrorHandler? { get set }
     var continuation: Continuation<Output>? { get set }
 
     func main(_ input: Input, completion: @escaping (Result<Output>) -> ())
 
-    func execute(_ input: Input)
+    func execute(_ input: Input, errorHandler: @escaping ErrorHandler)
 
     @discardableResult func append<C: ChainableCommand>(_ nextCommand: C) -> C where C.Input == Output
 }
 
 public extension ChainableCommand {
     func append<C: ChainableCommand>(_ nextCommand: C) -> C where C.Input == Output {
-        continuation = { [weak self] (result) in
-            nextCommand.errorHandler = self?.errorHandler
-            nextCommand.execute(result)
+        continuation = { (result: Output, errorHandler: @escaping ErrorHandler) in
+            nextCommand.execute(result, errorHandler: errorHandler)
         }
 
         return nextCommand
@@ -54,22 +52,22 @@ public extension ChainableCommand {
         return append(wrapper)
     }
 
-    func execute(_ input: Input) {
+    func execute(_ input: Input, errorHandler: @escaping ErrorHandler) {
         main(input) { [weak self] (result) in
             switch result {
             case .success(let output):
-                self?.continuation?(output)
+                self?.continuation?(output, errorHandler)
 
             case .failure(let error):
-                self?.errorHandler?(error)
+                errorHandler(error)
             }
         }
     }
 }
 
 public extension ChainableCommand where Input == EmptyCommandData {
-    func execute() {
-        execute(EmptyCommandData())
+    func execute(errorHandler: @escaping ErrorHandler) {
+        execute(EmptyCommandData(), errorHandler: errorHandler)
     }
 }
 

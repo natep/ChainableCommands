@@ -10,7 +10,6 @@ class PrimingCommand: ChainableCommand {
     typealias Input = EmptyCommandData
     typealias Output = (Int, Int)
 
-    var errorHandler: ErrorHandler?
     var continuation: Continuation<Output>?
 
     let x: Int
@@ -30,7 +29,6 @@ class AddCommand: ChainableCommand {
     typealias Input = (Int, Int)
     typealias Output = Int
 
-    var errorHandler: ErrorHandler?
     var continuation: Continuation<Output>?
 
     func main(_ input: (Int, Int), completion: @escaping (Result<Int>) -> ()) {
@@ -43,7 +41,6 @@ class DoubleCommand: ChainableCommand {
     typealias Input = Int
     typealias Output = Int
 
-    var errorHandler: ErrorHandler?
     var continuation: Continuation<Output>?
 
     func main(_ input: Int, completion: @escaping (Result<Int>) -> ()) {
@@ -57,7 +54,6 @@ class PrintCommand: ChainableCommand {
     typealias Input = Int
     typealias Output = String
 
-    var errorHandler: ErrorHandler?
     var continuation: Continuation<Output>?
 
     func main(_ input: Int, completion: @escaping (Result<String>) -> ()) {
@@ -68,9 +64,6 @@ class PrintCommand: ChainableCommand {
 }
 
 let primer = PrimingCommand(x: 2, y: 3)
-primer.errorHandler = { (error) in
-    print("oops: \(error)")
-}
 
 primer.append(AddCommand())
     .append(DoubleCommand())
@@ -83,4 +76,6 @@ primer.append(AddCommand())
         print("I got the result: \"\(result)\"")
     }
 
-primer.execute()
+primer.execute { (error) in
+    print("oops: \(error)")
+}
