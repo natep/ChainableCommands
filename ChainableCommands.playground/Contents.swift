@@ -6,25 +6,7 @@ enum FakeErrors: Error {
     case somethingBad
 }
 
-final class PrimingCommand: ChainableCommand {
-    typealias Input = EmptyCommandData
-    typealias Output = (Int, Int)
-
-    var continuation: Continuation<Output>?
-
-    let x: Int
-    let y: Int
-
-    init(x: Int, y: Int) {
-        self.x = x
-        self.y = y
-    }
-
-    func main(_ input: EmptyCommandData, completion: @escaping (Result<(Int, Int)>) -> ()) {
-        completion(.success((x, y)))
-    }
-}
-
+/// An example command that takes an Int tuple as input and outputs a single Int.
 final class AddCommand: ChainableCommand {
     typealias Input = (Int, Int)
     typealias Output = Int
@@ -37,6 +19,7 @@ final class AddCommand: ChainableCommand {
     }
 }
 
+/// An example command that takes an Int as input and outputs an Int.
 final class DoubleCommand: ChainableCommand {
     typealias Input = Int
     typealias Output = Int
@@ -45,11 +28,14 @@ final class DoubleCommand: ChainableCommand {
 
     func main(_ input: Int, completion: @escaping (Result<Int>) -> ()) {
         let result = input * 2
+
+        // comment out this line and uncomment the next to simulate an error
         completion(.success(result))
 //        completion(.failure(FakeErrors.somethingBad))
     }
 }
 
+/// An example command that takes an Int as input and outputs a String.
 final class PrintCommand: ChainableCommand {
     typealias Input = Int
     typealias Output = String
@@ -58,23 +44,24 @@ final class PrintCommand: ChainableCommand {
 
     func main(_ input: Int, completion: @escaping (Result<String>) -> ()) {
         let result = "This is the result: \(input)"
-        print(result)
         completion(.success(result))
     }
 }
 
-PrimingCommand(x: 2, y: 3)
-    .append(AddCommand())
+AddCommand()
     .append(DoubleCommand())
     .append { (input) -> Result<Int> in
+        // You can use a block as a command, with the signature defining the Input and Output
         let result = input * 3
         return .success(result)
     }
     .append(PrintCommand())
     .append { (result) in
+        // You can also use a block with no return, which is handy as the completion
         print("I got the result: \"\(result)\"")
     }
-    .execute { (error) in
+    .execute((2, 3)) { (error) in
+        // This is the ErrorHandler, which gets called if anything returns a failure
         print("oops: \(error)")
     }
 
