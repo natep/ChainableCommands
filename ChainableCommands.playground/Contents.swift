@@ -6,7 +6,7 @@ enum FakeErrors: Error {
     case somethingBad
 }
 
-class PrimingCommand: ChainableCommand {
+final class PrimingCommand: ChainableCommand {
     typealias Input = EmptyCommandData
     typealias Output = (Int, Int)
 
@@ -25,7 +25,7 @@ class PrimingCommand: ChainableCommand {
     }
 }
 
-class AddCommand: ChainableCommand {
+final class AddCommand: ChainableCommand {
     typealias Input = (Int, Int)
     typealias Output = Int
 
@@ -37,7 +37,7 @@ class AddCommand: ChainableCommand {
     }
 }
 
-class DoubleCommand: ChainableCommand {
+final class DoubleCommand: ChainableCommand {
     typealias Input = Int
     typealias Output = Int
 
@@ -50,7 +50,7 @@ class DoubleCommand: ChainableCommand {
     }
 }
 
-class PrintCommand: ChainableCommand {
+final class PrintCommand: ChainableCommand {
     typealias Input = Int
     typealias Output = String
 
@@ -63,9 +63,8 @@ class PrintCommand: ChainableCommand {
     }
 }
 
-let primer = PrimingCommand(x: 2, y: 3)
-
-primer.append(AddCommand())
+PrimingCommand(x: 2, y: 3)
+    .append(AddCommand())
     .append(DoubleCommand())
     .append { (input) -> Result<Int> in
         let result = input * 3
@@ -75,7 +74,8 @@ primer.append(AddCommand())
     .append { (result) in
         print("I got the result: \"\(result)\"")
     }
+    .execute { (error) in
+        print("oops: \(error)")
+    }
 
-primer.execute { (error) in
-    print("oops: \(error)")
-}
+

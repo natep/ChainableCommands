@@ -27,23 +27,23 @@ public protocol ChainableCommand: class {
 
     func execute(_ input: Input, errorHandler: @escaping ErrorHandler)
 
-    @discardableResult func append<C: ChainableCommand>(_ nextCommand: C) -> C where C.Input == Output
+    @discardableResult func append<C: ChainableCommand>(_ nextCommand: C) -> Chain<Self, C> where C.Input == Output
 }
 
 public extension ChainableCommand {
-    func append<C: ChainableCommand>(_ nextCommand: C) -> C where C.Input == Output {
+    func append<C: ChainableCommand>(_ nextCommand: C) -> Chain<Self, C> where C.Input == Output {
         continuation = { (result: Output, errorHandler: @escaping ErrorHandler) in
             nextCommand.execute(result, errorHandler: errorHandler)
         }
 
-        return nextCommand
+        return Chain(first: self, last: nextCommand)
     }
 
-    func append<I, O>(_ block: @escaping (I) -> (Result<O>)) -> BlockCommand<I,O> where I == Output {
+    func append<I, O>(_ block: @escaping (I) -> (Result<O>)) -> Chain<Self, BlockCommand<I,O>> where I == Output {
         return append(BlockCommand(block: block))
     }
 
-    func append<I>(_ block: @escaping (I) -> ()) -> BlockCommand<I,EmptyCommandData> where I == Output {
+    func append<I>(_ block: @escaping (I) -> ()) -> Chain<Self, BlockCommand<I,EmptyCommandData>> where I == Output {
         let wrapper: (I) -> (Result<EmptyCommandData>) = { (result) in
             block(result)
             return .success(EmptyCommandData())
@@ -71,7 +71,7 @@ public extension ChainableCommand where Input == EmptyCommandData {
     }
 }
 
-public class BlockCommand<ThisInput, ThisOutput>: ChainableCommand {
+public final class BlockCommand<ThisInput, ThisOutput>: ChainableCommand {
     public typealias Input = ThisInput
     public typealias Output = ThisOutput
 
@@ -87,5 +87,43 @@ public class BlockCommand<ThisInput, ThisOutput>: ChainableCommand {
     public func main(_ input: ThisInput, completion: @escaping (Result<ThisOutput>) -> ()) {
         let output = block(input)
         completion(output)
+    }
+}
+
+public struct Chain<FirstElement, LastElement> {
+    public let first: FirstElement
+    public let last: LastElement
+
+    public init(first: FirstElement, last: LastElement) {
+        self.first = first
+        self.last = last
+    }
+}
+
+public extension Chain where LastElement: ChainableCommand {
+    public func append<C: ChainableCommand>(_ nextCommand: C) -> Chain<FirstElement,C> where C.Input == LastElement.Output {
+        return Chain<FirstElement,C>(first: first, last: last.append(nextCommand).last)
+    }
+}
+
+public extension Chain where FirstElement: ChainableCommand, LastElement: ChainableCommand {
+    func append<I, O>(_ block: @escaping (I) -> (Result<O>)) -> Chain<FirstElement, BlockCommand<I,O>> where I == LastElement.Output {
+        return Chain<FirstElement,BlockCommand<I,O>>(first: first, last: last.append(BlockCommand(block: block)).last)
+    }
+
+    func append<I>(_ block: @escaping (I) -> ()) -> Chain<FirstElement, BlockCommand<I,EmptyCommandData>> where I == LastElement.Output {
+        return Chain<FirstElement,BlockCommand<I,EmptyCommandData>>(first: first, last: last.append(block).last)
+    }
+}
+
+public extension Chain where FirstElement: ChainableCommand {
+    func execute(_ input: FirstElement.Input, errorHandler: @escaping ErrorHandler) {
+        first.execute(input, errorHandler: errorHandler)
+    }
+}
+
+public extension Chain where FirstElement: ChainableCommand, FirstElement.Input == EmptyCommandData {
+    func execute(errorHandler: @escaping ErrorHandler) {
+        first.execute(EmptyCommandData(), errorHandler: errorHandler)
     }
 }
