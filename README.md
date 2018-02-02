@@ -1,6 +1,6 @@
 # ChainableCommands
 
-This is a library for chaining together commands, such that the output of each command flows into the command in the chain.
+This is a library for chaining together commands, such that the output of each command flows into the next command in the chain.
 
 ## Motivation
 
@@ -48,6 +48,7 @@ final class TransformImageDataCommand: ChainableCommand {
     }
 }
 
+/// Uploads the input data, and outputs the resulting HTTP status code.
 final class UploadImageDataCommand: ChainableCommand {
     typealias Input = Data
     typealias Output = Int
@@ -75,6 +76,8 @@ ReadFileCommand()
         print("Failed with error: \(error)")
     }
 ```
+
+The commands will be executed in order and if an error occurs at any point, processing will stop and the provided error handler will be executed.
 
 ## Roadmap
 This is an early iteration of this concept, and may change. The repo also contains a Playground, which you can use to try this out. I am planning to make it available as a CocoaPod.
