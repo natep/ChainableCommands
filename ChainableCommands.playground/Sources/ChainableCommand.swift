@@ -53,7 +53,7 @@ public protocol ChainableCommand: class {
     ///
     /// - Parameter nextCommand: A command whose input matches this command's output.
     /// - Returns: A `Chain` object, which you can essentially treat as a `ChainableCommand`.
-    @discardableResult func append<C: ChainableCommand>(_ nextCommand: C) -> Chain<Self, C> where C.Input == Output
+    func append<C: ChainableCommand>(_ nextCommand: C) -> Chain<Self, C> where C.Input == Output
 }
 
 public extension ChainableCommand {
@@ -97,14 +97,25 @@ public extension ChainableCommand {
     ///   - input: The required input for the command.
     ///   - errorHandler: An `ErrorHandler` to execute if an error occurs.
     func execute(_ input: Input, errorHandler: @escaping ErrorHandler) {
-        main(input) { [weak self] (result) in
+        // intentionally capture strong reference to self, to avoid being deallocated while executing
+        var strongSelf : Self? = self
+
+        main(input) { (result) in
             switch result {
             case .success(let output):
-                self?.continuation?(output, errorHandler)
+                guard let strongSelf = strongSelf else {
+                    assertionFailure()
+                    return
+                }
+
+                strongSelf.continuation?(output, errorHandler)
 
             case .failure(let error):
                 errorHandler(error)
             }
+
+            // clear strong reference
+            strongSelf = nil
         }
     }
 }
