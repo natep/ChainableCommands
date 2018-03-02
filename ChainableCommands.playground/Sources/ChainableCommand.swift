@@ -162,6 +162,13 @@ public struct Chain<FirstElement, LastElement> {
     }
 }
 
+public extension Chain where FirstElement == LastElement {
+    public init(first: FirstElement) {
+        self.first = first
+        self.last = first
+    }
+}
+
 public extension Chain where FirstElement: ChainableCommand, LastElement: ChainableCommand {
     /// Appends a new command to the chain.
     ///
